@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Offline AI Powered Summarizer - HAL</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+
+  @font-face {
+  font-family: 'Poppins';
+  src: url('{{ url_for('static', filename='fonts/Poppins-Regular.ttf') }}') format('truetype');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('{{ url_for('static', filename='fonts/Poppins-Bold.ttf') }}') format('truetype');
+  font-weight: 600;
+}
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      position: relative;
+      background-color: #f4f9ff;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .dark-mode {
+      background-color: #121212;
+      color: #f5f5f5;
+    }
+
+    .bg-image {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 3;
+      transition: opacity 1s ease-in-out;
+      
+    }
+
+    header {
+      background-color: rgba(0, 64, 128, 0.88);
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left, .header-center, .header-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-left {
+      justify-content: flex-start;
+    }
+
+    .header-right {
+      justify-content: flex-end;
+    }
+
+    .logo {
+      height: 80px;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .toggle-btn {
+      background-color: #444;
+      color: white;
+      padding: 0.4rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .dark-mode .toggle-btn {
+      background-color: #eee;
+      color: #000;
+    }
+
+    .container {
+  max-width: 800px;
+  margin: 2rem auto;
+  background-color: rgba(255, 255, 255, 0.4); /* less white */
+  backdrop-filter: blur(8px);                /* add background blur */
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 1;
+}
+
+
+    .dark-mode .container {
+      background-color: rgba(30, 30, 30, 0.92);
+      color: #eee;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      resize: vertical;
+    }
+
+    input[type="file"] {
+      margin-bottom: 1rem;
+    }
+
+    .button {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    #loader {
+      display: none;
+      margin-left: 10px;
+      font-size: 0.9rem;
+      color: #007bff;
+    }
+
+    .summary-list {
+      margin-top: 1rem;
+    }
+
+    .summary-list li::marker {
+      content: '⮚ ';
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background slideshow image -->
+  <img id="backgroundImage" class="bg-image" src="{{ url_for('static', filename='images/sukhoi.jpg') }}" alt="Background">
+  
+  <!-- Header with 3 part flex layout -->
+  <header>
+    <div class="header-left">
+      <img src="{{ url_for('static', filename='images/hal_logo.png') }}" alt="HAL Logo" class="logo">
+    </div>
+    <div class="header-center">
+      <div class="header-title">Offline AI POWERED SUMMARIZER</div>
+    </div>
+    <div class="header-right">
+      <button class="toggle-btn" id="toggleBtn">🌙 Dark Mode</button>
+    </div>
+  </header>
+
+  <!-- Main Input Area -->
+  <div class="container">
+    <form method="POST" action="/" enctype="multipart/form-data" onsubmit="showLoader()">
+      <label for="text"><strong>Paste your text here:</strong></label><br>
+      <textarea name="text" id="text" rows="8" placeholder="Paste text here..."></textarea><br>
+
+      <label for="file"><strong>Or upload a file (PDF, DOCX, TXT):</strong></label><br>
+      <input type="file" name="file" id="fileInput" accept=".pdf,.docx,.txt" onchange="validateFile()"><br><br>
+
+      <button type="submit" class="button">🔍 Summarize</button>
+      <span id="loader">⏳ Processing...</span>
+    </form>
+
+    {% if summary %}
+      <hr>
+      <h3>Summary:</h3>
+      <ul class="summary-list">
+        {% for point in summary.split('\n') %}
+          {% if point.strip() %}
+            <li>{{ point.strip() | safe }}</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+      <form method="POST" action="/download">
+        <input type="hidden" name="summary_text" value="{{ summary }}">
+        <button class="button" type="submit">⬇️ Download Summary</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    const imageList = [
+      "{{ url_for('static', filename='images/alh.jpg') }}",
+      "{{ url_for('static', filename='images/do228.jpg') }}",
+      "{{ url_for('static', filename='images/lch.jpg') }}",
+      "{{ url_for('static', filename='images/rudra.jpg') }}",
+      "{{ url_for('static', filename='images/static_img.jpg') }}",
+      "{{ url_for('static', filename='images/sukhoi.jpg') }}"
+    ];
+
+    let currentIndex = 0;
+    const bgImage = document.getElementById("backgroundImage");
+
+    setInterval(() => {
+      currentIndex = (currentIndex + 1) % imageList.length;
+      bgImage.style.opacity = 0;
+      setTimeout(() => {
+        bgImage.src = imageList[currentIndex];
+        bgImage.style.opacity = 1;
+      }, 1000);
+    }, 5000);
+
+    const toggleBtn = document.getElementById("toggleBtn");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      toggleBtn.textContent = document.body.classList.contains("dark-mode")
+        ? "☀️ Light Mode"
+        : "🌙 Dark Mode";
+    });
+
+    function showLoader() {
+      document.getElementById("loader").style.display = "inline-block";
+    }
+
+    function validateFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      const allowedExtensions = ['pdf', 'docx', 'txt'];
+
+      if (file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+          alert("❌ Only PDF, DOCX, or TXT files are supported!");
+          fileInput.value = "";
+        }
+      }
+    }
+  </script>
+</body>
+</html>
